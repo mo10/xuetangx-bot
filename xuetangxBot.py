@@ -53,14 +53,19 @@ def getVideoUrls(auth,course_id,chapter_id):
     api = "http://www.xuetangx.com/api/v2/course/%s/sequential/%s/verticals"%(course_id,chapter_id)
     req = requests.get(api,headers=auth)
     req_j=json.loads(req.text)
+    #print(req_j)
     video_urls=[]
     for videos in req_j['verticals']:
         for video in videos['children']:
+            name = (videos['display_name'] if video['display_name'] == 'Video' else video['display_name'])
+            if  name.strip() == '':
+                name = videos['display_name']
+            name = name.strip()
             api="http://www.xuetangx.com/api/v2/video/%s/20"%(video['source'])
             req = requests.get(api,headers=auth)
             req_j=json.loads(req.text)
             for video_url in req_j['sources']:
-                video_urls.append(video_url)
+                video_urls.append({'url':video_url,'name':name})
     return video_urls
 #下载视频
 def downloadVideo(path,file,videoUrl):
@@ -87,16 +92,14 @@ for coure in getCoures(auth):
         cur+=1
         #遍历课程课程视频
         for chapter in chapters:
-                file=0
-                #遍历并下载视频
                 for video in getVideoUrls(auth,coure['id'],chapter['id']):
-                    file+=1
                     path="%s/%s/第%d章/%s"%(base_path,coure['name'],cur,chapter['name'])
-                    print("正在下载 %s 第%d章 %s 第%d个视频"%(coure['name'],cur,chapter['name'],file),end='\r')
+                    file="%s.mp4"%(video['name'])
+                    print("正在下载 %s/第%d章/%s/%s"%(coure['name'],cur,chapter['name'],file))
                     try:
-                        downloadVideo(path,"%d.mp4"%(file),video)
+                        downloadVideo(path,file,video['url'])
                     except Exception as e:
-                        fail_list.append("%s 第%d章 %s 第%d个视频下载失败\n\t%s"%(coure['name'],cur,chapter['name'],file,video))
+                        fail_list.append("%s 第%d章 %s %s下载失败\n\t"%(coure['name'],cur,chapter['name'],video['url']))
 for fail in fail_list:
     print(fail)
 print("\n全部下载完毕")
